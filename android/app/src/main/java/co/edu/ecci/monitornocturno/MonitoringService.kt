@@ -28,6 +28,7 @@ class MonitoringService : Service(), SensorEventListener {
     private var wakeLock: PowerManager.WakeLock? = null
     private var gravity = 9.81
     private var lastStatusNs = 0L
+    private var lastSampleBroadcastNs = 0L
     private var alerted = false
     private var currentLabel = "normal"
 
@@ -70,6 +71,14 @@ class MonitoringService : Service(), SensorEventListener {
         val dynamic = magnitude - gravity
         val state = detector.add(dynamic)
         writer?.write(String.format(Locale.US, "%d,%.6f,%.6f,%.6f,%.6f,%.4f,%.4f,%s\n", event.timestamp, event.values[0], event.values[1], event.values[2], dynamic, state.ratio, state.rhythmicity, currentLabel))
+        if (event.timestamp - lastSampleBroadcastNs >= 100_000_000L) {
+            lastSampleBroadcastNs = event.timestamp
+            sendBroadcast(Intent("co.edu.ecci.MONITOR_STATUS").setPackage(packageName)
+                .putExtra("sample", true)
+                .putExtra("ax", event.values[0])
+                .putExtra("ay", event.values[1])
+                .putExtra("az", event.values[2]))
+        }
         if (state.candidate && !alerted) {
             alerted = true
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(2, notification("Movimiento ritmico sostenido: verificar", true))
@@ -105,4 +114,3 @@ class MonitoringService : Service(), SensorEventListener {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() { if (writer != null) stopMonitoring(); super.onDestroy() }
 }
-

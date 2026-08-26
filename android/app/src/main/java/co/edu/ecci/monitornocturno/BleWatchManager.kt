@@ -63,8 +63,10 @@ class BleWatchManager(
                 BluetoothProfile.STATE_CONNECTED -> {
                     append("GATT conectado; solicitando MTU 247")
                     report("Watch S1 conectado", logText())
-                    g.requestMtu(247)
-                    g.discoverServices()
+                    if (!g.requestMtu(247)) {
+                        append("El telefono no acepto cambiar MTU; descubriendo servicios")
+                        g.discoverServices()
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     append("GATT desconectado; estado=$status")
@@ -75,7 +77,8 @@ class BleWatchManager(
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             append("MTU=$mtu estado=$status")
-            report("Watch S1 conectado", logText())
+            report("Watch S1 conectado; buscando servicios", logText())
+            gatt.discoverServices()
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {

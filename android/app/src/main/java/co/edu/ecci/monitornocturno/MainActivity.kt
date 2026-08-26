@@ -8,6 +8,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Color
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -18,9 +20,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private var running = false
     private lateinit var watchManager: BleWatchManager
+    private lateinit var accelerationChart: AccelerationChartView
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            status.text = intent?.getStringExtra("status") ?: "Sin datos"
+            if (intent?.getBooleanExtra("sample", false) == true) {
+                accelerationChart.addSample(
+                    intent.getFloatExtra("ax", 0f),
+                    intent.getFloatExtra("ay", 0f),
+                    intent.getFloatExtra("az", 0f))
+            } else status.text = intent?.getStringExtra("status") ?: "Sin datos"
         }
     }
 
@@ -28,11 +36,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         status = findViewById(R.id.status)
+        accelerationChart = findViewById(R.id.accelerationChart)
         val watchStatus = findViewById<TextView>(R.id.watchStatus)
         val watchLog = findViewById<TextView>(R.id.watchLog)
+        val watchDetails = findViewById<Button>(R.id.watchDetails)
+        watchDetails.setOnClickListener {
+            val show = watchLog.visibility != View.VISIBLE
+            watchLog.visibility = if (show) View.VISIBLE else View.GONE
+            watchDetails.text = if (show) "Ocultar detalles tecnicos" else "Ver detalles tecnicos"
+        }
         watchManager = BleWatchManager(this) { headline, detail ->
             runOnUiThread {
                 watchStatus.text = headline
+                val connected = headline.contains("conectado", true) || headline.contains("recibiendo", true)
+                watchStatus.setTextColor(if (connected) Color.rgb(32, 125, 66) else Color.rgb(175, 55, 55))
                 if (detail.isNotBlank()) watchLog.text = detail
             }
         }

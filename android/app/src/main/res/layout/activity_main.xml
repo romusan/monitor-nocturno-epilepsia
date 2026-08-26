@@ -20,10 +20,14 @@
             android:text="Buscar y conectar Watch S1" />
         <TextView android:id="@+id/watchStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:text="Reloj no conectado" />
+            android:text="● Reloj no conectado" android:textSize="18sp" android:textStyle="bold" />
+        <Button android:id="@+id/watchDetails" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:text="Ver detalles tecnicos" />
         <TextView android:id="@+id/watchLog" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
             android:fontFamily="monospace" android:textSize="12sp"
+            android:visibility="gone"
             android:text="El diagnostico mostrara servicios y paquetes BLE." />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="Acelerometro del celular"
@@ -31,6 +35,13 @@
         <Button android:id="@+id/toggle" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Iniciar sesion nocturna" />
+        <co.edu.ecci.monitornocturno.AccelerationChartView
+            android:id="@+id/accelerationChart"
+            android:layout_width="match_parent" android:layout_height="190dp"
+            android:layout_marginTop="10dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Aceleracion en vivo: X rojo · Y verde · Z azul"
+            android:textSize="12sp" android:gravity="center" />
         <Button android:id="@+id/confirm" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
             android:text="Marcar evento confirmado" />
