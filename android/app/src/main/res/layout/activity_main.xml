@@ -21,6 +21,16 @@
         <TextView android:id="@+id/watchStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
             android:text="● Reloj no conectado" android:textSize="18sp" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="10dp" android:padding="12dp"
+            android:background="#EAF3F8">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Frecuencia cardiaca\nInicie la medicion en el reloj" />
+            <TextView android:id="@+id/heartRate" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="-- lpm"
+                android:textSize="26sp" android:textStyle="bold" android:textColor="#B43745" />
+        </LinearLayout>
         <Button android:id="@+id/watchDetails" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="6dp"
             android:text="Ver detalles tecnicos" />

@@ -26,7 +26,8 @@ import java.util.UUID
 @SuppressLint("MissingPermission")
 class BleWatchManager(
     private val context: Context,
-    private val report: (String, String) -> Unit
+    private val report: (String, String) -> Unit,
+    private val reportHeartRate: (Int) -> Unit
 ) {
     private val adapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
@@ -43,17 +44,20 @@ class BleWatchManager(
             append("Visto: ${name.ifBlank { "sin nombre" }} | RSSI ${result.rssi}")
             if (isWatchS1(name)) {
                 stopScan()
-                report("Conectando con $name...", logText())
-                gatt?.close()
-                gatt = if (Build.VERSION.SDK_INT >= 23)
-                    result.device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
-                else result.device.connectGatt(context, false, callback)
+                connectDevice(result.device, name)
             }
         }
 
         override fun onScanFailed(errorCode: Int) {
             scanning = false
-            report("Fallo de escaneo BLE ($errorCode)", logText())
+            val reason = when (errorCode) {
+                ScanCallback.SCAN_FAILED_ALREADY_STARTED -> "la busqueda ya estaba activa"
+                ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "Android no pudo registrar el escaneo"
+                ScanCallback.SCAN_FAILED_INTERNAL_ERROR -> "error interno de Bluetooth"
+                ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED -> "escaneo BLE no compatible"
+                else -> "codigo $errorCode"
+            }
+            report("No fue necesario completar el escaneo: $reason", logText())
         }
     }
 
@@ -89,6 +93,9 @@ class BleWatchManager(
                     append("  C ${short(characteristic.uuid)} ${properties(characteristic.properties)}")
                 }
             }
+            val standardHr = g.getService(HEART_RATE_SERVICE)
+                ?.getCharacteristic(HEART_RATE_MEASUREMENT) != null
+            append(if (standardHr) "Servicio cardiaco BLE estandar disponible" else "Servicio cardiaco estandar no expuesto; puede usar protocolo Xiaomi")
             report("Conectado: ${g.services.size} servicios BLE", logText())
             notifyCandidates = g.services.flatMap { it.characteristics }
             notifyIndex = 0
@@ -115,6 +122,19 @@ class BleWatchManager(
         if (adapter == null || adapter?.isEnabled != true || scanner == null) {
             report("Active Bluetooth para buscar el reloj", logText()); return
         }
+        if (scanning) {
+            report("Buscando Watch S1...", logText() + "\nLa busqueda ya esta en curso.")
+            return
+        }
+        val bondedWatch = adapter?.bondedDevices?.firstOrNull {
+            isWatchS1(it.name ?: "")
+        }
+        if (bondedWatch != null) {
+            logLines.clear()
+            append("Watch S1 encontrado entre los dispositivos vinculados")
+            connectDevice(bondedWatch, bondedWatch.name ?: "Watch S1")
+            return
+        }
         closeGattOnly()
         logLines.clear(); append("Buscando Xiaomi Watch S1 durante 15 s...")
         scanning = true
@@ -125,6 +145,14 @@ class BleWatchManager(
                 report("No se encontro Watch S1", logText() + "\nAbra Bluetooth/Mi Fitness y acerque el reloj.")
             }
         }, 15_000)
+    }
+
+    private fun connectDevice(device: BluetoothDevice, name: String) {
+        report("Conectando directamente con $name...", logText())
+        closeGattOnly()
+        gatt = if (Build.VERSION.SDK_INT >= 23)
+            device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        else device.connectGatt(context, false, callback)
     }
 
     private fun enableNextNotification() {
@@ -152,6 +180,12 @@ class BleWatchManager(
     }
 
     private fun receive(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+        if (characteristic.uuid == HEART_RATE_MEASUREMENT) {
+            parseHeartRate(value)?.let {
+                append("Frecuencia cardiaca: $it lpm")
+                reportHeartRate(it)
+            }
+        }
         val hex = value.take(48).joinToString("") { "%02X".format(it) }
         append("RX ${short(characteristic.uuid)} ${value.size}B $hex")
         report("Recibiendo datos del Watch S1", logText())
@@ -185,5 +219,16 @@ class BleWatchManager(
 
     companion object {
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        private val HEART_RATE_SERVICE = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
+        private val HEART_RATE_MEASUREMENT = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
+
+        fun parseHeartRate(value: ByteArray): Int? {
+            if (value.size < 2) return null
+            val is16Bit = value[0].toInt() and 0x01 != 0
+            return if (is16Bit) {
+                if (value.size < 3) null
+                else (value[1].toInt() and 0xff) or ((value[2].toInt() and 0xff) shl 8)
+            } else value[1].toInt() and 0xff
+        }
     }
 }

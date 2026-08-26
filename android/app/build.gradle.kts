@@ -10,8 +10,8 @@ android {
         applicationId = "co.edu.ecci.monitornocturno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0-watch-chart"
+        versionCode = 5
+        versionName = "0.4.0-watch-heart-rate"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         status = findViewById(R.id.status)
         accelerationChart = findViewById(R.id.accelerationChart)
         val watchStatus = findViewById<TextView>(R.id.watchStatus)
+        val heartRate = findViewById<TextView>(R.id.heartRate)
         val watchLog = findViewById<TextView>(R.id.watchLog)
         val watchDetails = findViewById<Button>(R.id.watchDetails)
         watchDetails.setOnClickListener {
@@ -45,14 +46,18 @@ class MainActivity : AppCompatActivity() {
             watchLog.visibility = if (show) View.VISIBLE else View.GONE
             watchDetails.text = if (show) "Ocultar detalles tecnicos" else "Ver detalles tecnicos"
         }
-        watchManager = BleWatchManager(this) { headline, detail ->
-            runOnUiThread {
-                watchStatus.text = headline
-                val connected = headline.contains("conectado", true) || headline.contains("recibiendo", true)
-                watchStatus.setTextColor(if (connected) Color.rgb(32, 125, 66) else Color.rgb(175, 55, 55))
-                if (detail.isNotBlank()) watchLog.text = detail
-            }
-        }
+        watchManager = BleWatchManager(
+            this,
+            { headline, detail ->
+                runOnUiThread {
+                    watchStatus.text = headline
+                    val connected = headline.contains("conectado", true) || headline.contains("recibiendo", true)
+                    watchStatus.setTextColor(if (connected) Color.rgb(32, 125, 66) else Color.rgb(175, 55, 55))
+                    if (detail.isNotBlank()) watchLog.text = detail
+                }
+            },
+            { bpm -> runOnUiThread { heartRate.text = "$bpm lpm" } }
+        )
         findViewById<Button>(R.id.connectWatch).setOnClickListener {
             if (hasBluetoothPermissions()) watchManager.scanAndConnect()
             else ActivityCompat.requestPermissions(this, bluetoothPermissions(), 20)
