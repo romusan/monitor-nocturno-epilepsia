@@ -136,6 +136,7 @@ class BleWatchManager(
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             append("TX ${short(characteristic.uuid)} estado=$status")
+            report(if (status == BluetoothGatt.GATT_SUCCESS) "Paquete Xiaomi enviado; esperando reloj" else "Fallo al enviar paquete Xiaomi ($status)", logText())
             characteristicWriteInProgress = false
             writeNext()
         }
@@ -254,6 +255,12 @@ class BleWatchManager(
         append("Iniciando reto de autenticacion Xiaomi")
         report("Autenticando Watch S1...", logText())
         enqueueWrite(write, xiaomiProtocol!!.noncePacket())
+        handler.postDelayed({
+            if (xiaomiProtocol?.authenticated == false) {
+                append("Tiempo agotado: el reloj no respondio al reto Xiaomi")
+                report("Watch S1 no respondio a la autenticacion", logText())
+            }
+        }, 10_000)
     }
 
     private fun enqueueWrite(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
@@ -265,14 +272,23 @@ class BleWatchManager(
         if (characteristicWriteInProgress) return
         val g = gatt ?: return
         val next = pendingWrites.removeFirstOrNull() ?: return
+        val supportsWrite = next.first.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0
+        val supportsNoResponse = next.first.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0
+        val writeType = if (!supportsWrite && supportsNoResponse)
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        append("Enviando ${short(next.first.uuid)} modo=${if (writeType == BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE) "WNR" else "WRITE"}")
         val accepted = if (Build.VERSION.SDK_INT >= 33) {
-            g.writeCharacteristic(next.first, next.second, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
+            g.writeCharacteristic(next.first, next.second, writeType) == BluetoothStatusCodes.SUCCESS
         } else {
-            @Suppress("DEPRECATION") next.first.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            @Suppress("DEPRECATION") next.first.writeType = writeType
             @Suppress("DEPRECATION") next.first.value = next.second
             @Suppress("DEPRECATION") g.writeCharacteristic(next.first)
         }
-        if (accepted) characteristicWriteInProgress = true
+        if (accepted) {
+            characteristicWriteInProgress = true
+            report("Enviando autenticacion Xiaomi...", logText())
+        }
         else {
             append("Android rechazo escritura ${short(next.first.uuid)}")
             handler.postDelayed({ writeNext() }, 200)

@@ -10,8 +10,8 @@ android {
         applicationId = "co.edu.ecci.monitornocturno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.6.0-xiaomi-heart-rate"
+        versionCode = 8
+        versionName = "0.7.0-xiaomi-write-modes"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
