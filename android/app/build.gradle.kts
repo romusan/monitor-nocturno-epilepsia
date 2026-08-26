@@ -10,8 +10,8 @@ android {
         applicationId = "co.edu.ecci.monitornocturno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.7.0-xiaomi-write-modes"
+        versionCode = 9
+        versionName = "0.8.0-xiaomi-gatt-retry"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

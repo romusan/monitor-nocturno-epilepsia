@@ -43,6 +43,7 @@ class BleWatchManager(
     private var xiaomiProtocol: XiaomiProtocol? = null
     private val pendingWrites = ArrayDeque<Pair<BluetoothGattCharacteristic, ByteArray>>()
     private var characteristicWriteInProgress = false
+    private var rejectedWriteRetries = 0
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -213,7 +214,8 @@ class BleWatchManager(
             }
         }
         report("Watch S1 conectado; escuchando paquetes", logText())
-        startXiaomiAuthentication()
+        // MIUI can still report GATT busy from inside the final descriptor callback.
+        handler.postDelayed({ startXiaomiAuthentication() }, 500)
     }
 
     private fun receive(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
@@ -286,12 +288,20 @@ class BleWatchManager(
             @Suppress("DEPRECATION") g.writeCharacteristic(next.first)
         }
         if (accepted) {
+            rejectedWriteRetries = 0
             characteristicWriteInProgress = true
             report("Enviando autenticacion Xiaomi...", logText())
         }
         else {
-            append("Android rechazo escritura ${short(next.first.uuid)}")
-            handler.postDelayed({ writeNext() }, 200)
+            rejectedWriteRetries++
+            append("Android rechazo escritura ${short(next.first.uuid)}; reintento $rejectedWriteRetries/4")
+            if (rejectedWriteRetries <= 4) {
+                pendingWrites.addFirst(next)
+                handler.postDelayed({ writeNext() }, 500L * rejectedWriteRetries)
+            } else {
+                rejectedWriteRetries = 0
+                report("No fue posible escribir en el canal Xiaomi", logText())
+            }
         }
     }
 
