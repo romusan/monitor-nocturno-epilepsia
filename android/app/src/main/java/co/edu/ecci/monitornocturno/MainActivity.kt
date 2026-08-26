@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private var running = false
+    private lateinit var watchManager: BleWatchManager
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             status.text = intent?.getStringExtra("status") ?: "Sin datos"
@@ -27,6 +28,18 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         status = findViewById(R.id.status)
+        val watchStatus = findViewById<TextView>(R.id.watchStatus)
+        val watchLog = findViewById<TextView>(R.id.watchLog)
+        watchManager = BleWatchManager(this) { headline, detail ->
+            runOnUiThread {
+                watchStatus.text = headline
+                if (detail.isNotBlank()) watchLog.text = detail
+            }
+        }
+        findViewById<Button>(R.id.connectWatch).setOnClickListener {
+            if (hasBluetoothPermissions()) watchManager.scanAndConnect()
+            else ActivityCompat.requestPermissions(this, bluetoothPermissions(), 20)
+        }
         val toggle = findViewById<Button>(R.id.toggle)
         toggle.setOnClickListener {
             if (!running) {
@@ -48,10 +61,25 @@ class MainActivity : AppCompatActivity() {
         startService(Intent(this, MonitoringService::class.java).setAction("LABEL").putExtra("label", label))
     }
 
+    private fun bluetoothPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 31)
+        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+
+    private fun hasBluetoothPermissions() = bluetoothPermissions().all {
+        ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 20 && grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            watchManager.scanAndConnect()
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         ContextCompat.registerReceiver(this, receiver, IntentFilter("co.edu.ecci.MONITOR_STATUS"), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
     override fun onStop() { unregisterReceiver(receiver); super.onStop() }
+    override fun onDestroy() { watchManager.close(); super.onDestroy() }
 }
-

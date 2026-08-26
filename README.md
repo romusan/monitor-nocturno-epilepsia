@@ -14,6 +14,11 @@ La primera version se limita a tres funciones verificables:
 3. guardar CSV etiquetados (`normal`, `evento_confirmado`, `falsa_alarma`) para construir
    posteriormente un clasificador personalizado.
 
+La pantalla incluye ademas un diagnostico BLE para Xiaomi Watch S1. Busca el reloj,
+establece una conexion GATT, enumera servicios/caracteristicas y escucha notificaciones.
+Esta funcion permite identificar el protocolo real del firmware; todavia no interpreta
+como aceleracion los paquetes propietarios y autenticados de Xiaomi.
+
 El telefono debe estar apoyado firmemente en el colchon, cerca de la nina. Si duermen
 varias personas en la misma cama, el sistema no puede atribuir el movimiento a una
 persona. Esta limitacion no se resuelve con aprendizaje automatico sin sensores o
@@ -43,4 +48,3 @@ tambien se puede ejecutar manualmente desde GitHub Actions.
   equipo clinico.
 
 La sintesis de literatura y el plan experimental estan en `docs/viabilidad.md`.
-

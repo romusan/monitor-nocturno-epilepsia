@@ -12,6 +12,22 @@
         <TextView android:id="@+id/status" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
             android:text="Detenido" android:textSize="18sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:text="Sensor de muneca"
+            android:textSize="20sp" android:textStyle="bold" />
+        <Button android:id="@+id/connectWatch" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="10dp"
+            android:text="Buscar y conectar Watch S1" />
+        <TextView android:id="@+id/watchStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:text="Reloj no conectado" />
+        <TextView android:id="@+id/watchLog" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:fontFamily="monospace" android:textSize="12sp"
+            android:text="El diagnostico mostrara servicios y paquetes BLE." />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:text="Acelerometro del celular"
+            android:textSize="20sp" android:textStyle="bold" />
         <Button android:id="@+id/toggle" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Iniciar sesion nocturna" />
@@ -26,4 +42,3 @@
             android:text="Coloque el telefono firmemente sobre el colchon y conectado al cargador. Use siempre la misma posicion. Los archivos CSV permanecen en el almacenamiento privado de la app." />
     </LinearLayout>
 </ScrollView>
-

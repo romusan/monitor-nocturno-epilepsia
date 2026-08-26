@@ -9,3 +9,4 @@ tmp/
 papers/
 outputs/
 .gradle-home/
+.android-home/
