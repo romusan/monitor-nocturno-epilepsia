@@ -20,7 +20,7 @@
             android:textSize="13sp" />
         <Button android:id="@+id/syncHealth" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
-            android:text="Autorizar y actualizar registros" />
+            android:text="Autorizar o actualizar ahora" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:layout_marginTop="10dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
@@ -44,7 +44,7 @@
         </LinearLayout>
         <TextView android:id="@+id/healthStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:text="Pulse actualizar y autorice ambos tipos de datos" />
+            android:text="Autorice ambos datos. Luego se actualizan cada minuto." />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="Acelerometro del celular"
             android:textSize="20sp" android:textStyle="bold" />

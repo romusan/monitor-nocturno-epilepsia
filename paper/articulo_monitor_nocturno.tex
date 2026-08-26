@@ -1,0 +1,196 @@
+\documentclass[12pt]{article}
+\usepackage[letterpaper,margin=2.54cm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{setspace}
+\doublespacing
+\usepackage{booktabs,tabularx,array,longtable}
+\usepackage{graphicx,float}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parindent}{1.27cm}
+\setlength{\parskip}{0pt}
+\setcounter{secnumdepth}{0}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue,citecolor=black}
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+\fancyhf{}
+\fancyhead[R]{\small MONITOREO NOCTURNO DE EVENTOS MOTORES}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+{\bfseries\Large Diseño de un sistema móvil multimodal para el registro y la detección personalizada de eventos motores nocturnos asociados con epilepsia\par}
+\vspace{2.2cm}
+{\large Claudia Patricia Parra Medina\par}
+{\large Universidad Militar Nueva Granada (UMNG)\par}
+\vspace{0.7cm}
+{\large Rómulo Sandoval Flórez\par}
+{\large Universidad ECCI\par}
+\vfill
+{\large Bogotá, Colombia\par}
+{\large 2026\par}
+\end{titlepage}
+
+\begin{abstract}
+Las crisis tonicoclónicas nocturnas presentan un reto de supervisión domiciliaria porque su ocurrencia puede pasar inadvertida y porque los sistemas clínicos de referencia, como el videoelectroencefalograma, no están disponibles para vigilancia continua en el hogar. Este artículo presenta el diseño y protocolo de evaluación de un sistema móvil experimental que combina el acelerómetro de un teléfono ubicado sobre el colchón con registros históricos de frecuencia cardiaca y saturación de oxígeno procedentes de un reloj Xiaomi Watch S1, sincronizados por Mi Fitness y Health Connect. La arquitectura emplea un disparador computacional de bajo costo basado en la razón entre promedio de corto y largo plazo (STA/LTA), seguido por análisis de persistencia y periodicidad en la banda de 2--5 Hz. Los eventos candidatos y sus ventanas de contexto se almacenan localmente y pueden etiquetarse como evento confirmado o falsa alarma, con el fin de construir posteriormente clasificadores personalizados. Se propone una validación prospectiva por noches completas, priorizando sensibilidad por episodio y falsas alarmas por hora, y evitando la fuga de información entre entrenamiento y prueba. El sistema no se plantea como dispositivo diagnóstico ni como reemplazo del protocolo médico, sino como plataforma de adquisición y alerta complementaria. La contribución principal consiste en integrar principios de análisis de vibraciones, detección sísmica y salud móvil dentro de un diseño reproducible, de bajo costo y centrado en la personalización.
+
+\noindent\textit{Palabras clave}: epilepsia, acelerometría, detección de crisis, Health Connect, aprendizaje automático, monitoreo nocturno.
+\end{abstract}
+
+\section{Introducción}
+
+La epilepsia comprende trastornos neurológicos caracterizados por una predisposición persistente a presentar crisis. En el entorno domiciliario, el registro confiable de eventos nocturnos es difícil: la observación del cuidador es intermitente, las descripciones retrospectivas pueden ser incompletas y no todas las crisis presentan un componente motor observable. Las crisis tonicoclónicas son de particular interés para tecnologías de movimiento debido a su patrón motor sostenido, aunque ningún sistema basado únicamente en acelerometría puede identificar todo el espectro de crisis.
+
+Los sensores portátiles ofrecen una vía para extender el monitoreo más allá del hospital. En un estudio prospectivo controlado con video-EEG, Johansson et al. (2019) utilizaron dos acelerómetros triaxiales de muñeca en 75 candidatos a cirugía y registraron 37 crisis tonicoclónicas. En el conjunto de prueba, el método de vecinos más cercanos alcanzó 100\% de sensibilidad con 0,05 falsos positivos por hora, mientras que Random Forest obtuvo 90\% de sensibilidad con 0,01 falsos positivos por hora. Estos resultados muestran el potencial de la acelerometría, pero también evidencian que el desempeño depende de la ubicación del sensor, la población y la capa temporal de decisión.
+
+El presente trabajo aborda un escenario más restrictivo: un teléfono colocado sobre una cama compartida. Un único sensor sobre el colchón registra la vibración transmitida por toda la superficie y no puede atribuirla de forma inequívoca a una persona. Por ello, la pregunta de investigación no es si el teléfono diagnostica una convulsión, sino si una arquitectura personalizada puede reconocer movimientos nocturnos rítmicos y sostenidos con una tasa de falsas alarmas suficientemente baja para justificar una verificación humana.
+
+\section{Objetivo y pregunta de investigación}
+
+El objetivo es diseñar y evaluar una plataforma móvil de bajo costo para adquirir, detectar, etiquetar y analizar eventos motores nocturnos, complementada con registros fisiológicos históricos provenientes de un reloj inteligente.
+
+La pregunta de investigación es: \textit{¿en qué medida un disparador STA/LTA, combinado con características espectrales y un modelo personalizado, permite identificar eventos motores nocturnos sostenidos en una cama compartida, manteniendo una tasa de falsas alarmas operacionalmente aceptable?}
+
+Se plantean tres objetivos específicos: (a) implementar adquisición continua de aceleración y almacenamiento etiquetado; (b) caracterizar la utilidad incremental de frecuencia cardiaca y SpO$_2$ históricas como contexto temporal; y (c) establecer un protocolo de validación que separe noches completas entre entrenamiento y prueba.
+
+\section{Antecedentes}
+
+\subsection{Acelerometría y sensores corporales}
+
+La acelerometría resulta apropiada para crisis con actividad motora intensa, en especial las tonicoclónicas. Johansson et al. (2019) combinaron filtrado, representación tiempo-frecuencia, clasificadores binarios y una capa específica de detección de eventos. Su diseño con sensores en ambas muñecas reduce ambigüedades que permanecen en un teléfono sobre el colchón. Por su parte, Alt Murphy et al. (2019) desarrollaron una prenda con sensores integrados para trastornos neurológicos y hallaron que acelerómetros y giroscopios producían las señales más robustas, mientras que el registro cardiaco era sensible a artefactos de movimiento. Esto respalda la multimodalidad, pero exige interpretar las variables fisiológicas con cautela.
+
+Chen et al. (2023) evaluaron un sistema neonatal multisensor y mostraron que la combinación de modalidades puede mejorar la discriminación frente al uso aislado de una señal. Sin embargo, las diferencias de edad, fisiología, entorno clínico y sensores impiden transferir directamente sus métricas al monitoreo domiciliario de este proyecto.
+
+\subsection{IoT, personalización y procesamiento local}
+
+McHale et al. (2017) proponen planes de monitoreo personalizados debido a la heterogeneidad de las crisis y de las necesidades de cada paciente. La idea de que no existe un dispositivo universal es central para este trabajo: los umbrales, la posición del teléfono y los patrones imitadores deben calibrarse con datos de la persona y del dormitorio reales.
+
+El procesamiento en el borde reduce latencia y dependencia de conectividad. Sayeed et al. (2018) reportaron una arquitectura IoT de detección basada en EEG con procesamiento local; aunque sus métricas no son comparables con acelerometría, el principio arquitectónico de filtrar y clasificar cerca de la fuente es pertinente. Las revisiones sobre dispositivos IoT y wearables también subrayan la necesidad de integrar sensores, interoperabilidad y aplicaciones clínicas sin confundir prototipos con dispositivos validados (Zovko et al., 2023).
+
+\section{Método}
+
+\subsection{Diseño del estudio}
+
+Se propone un estudio de desarrollo tecnológico con validación prospectiva, observacional y de caso único inicialmente. La unidad de análisis será la noche completa. La primera fase medirá factibilidad técnica y distribución del ruido; la segunda incorporará eventos etiquetados; la tercera comparará modelos personalizados mediante particiones temporales estrictas.
+
+\subsection{Arquitectura del sistema}
+
+La aplicación Android adquiere aceleración triaxial aproximadamente a 50 Hz mediante un servicio visible. La magnitud independiente de orientación se define como
+
+\begin{equation}
+m(t)=\sqrt{x(t)^2+y(t)^2+z(t)^2}.
+\end{equation}
+
+Se elimina la componente lenta asociada con gravedad y cambios de orientación. La energía de corto plazo (STA) y la energía de largo plazo (LTA) se estiman sobre ventanas de 1 y 20 segundos, respectivamente. El cociente
+
+\begin{equation}
+R(t)=\frac{\mathrm{STA}(t)}{\mathrm{LTA}(t)+\epsilon}
+\end{equation}
+
+actúa como disparador inicial. Un evento solo se conserva si existe energía relativa suficiente, periodicidad dominante entre 2 y 5 Hz y persistencia durante el intervalo configurado. Esta combinación traslada al dominio biomédico dos ideas provenientes del análisis de vibraciones y la sismología: detectar cambios sobre un fondo adaptativo y diferenciar transitorios breves de oscilaciones sostenidas.
+
+\begin{table}[H]
+\centering
+\caption{Componentes funcionales del prototipo}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm}X X}
+\toprule
+Componente & Función & Salida \\
+\midrule
+Acelerómetro del teléfono & Muestreo continuo del movimiento transmitido al colchón & Series $x$, $y$, $z$, magnitud y tiempo \\
+Disparador STA/LTA & Selección económica de intervalos con energía anómala & Evento candidato \\
+Análisis de periodicidad & Confirmación de actividad sostenida en 2--5 Hz & Puntaje rítmico \\
+Etiquetado & Registro manual de evento confirmado o falsa alarma & Clase supervisada \\
+Mi Fitness y Health Connect & Importación de pulso y SpO$_2$ registrados por el Watch S1 & Contexto fisiológico histórico \\
+Almacenamiento local & Conservación de ventanas y metadatos sin identificación directa & Archivo CSV por sesión \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Integración fisiológica}
+
+El Xiaomi Watch S1 no expone de manera estándar y estable su acelerómetro crudo ni el servicio cardiaco continuo a aplicaciones de terceros. Por ello se descartó, para esta versión, la autenticación BLE propietaria. La ruta adoptada es Watch S1--Mi Fitness--Health Connect--aplicación. El prototipo solicita únicamente lectura de \texttt{HeartRateRecord} y \texttt{OxygenSaturationRecord} de los últimos siete días.
+
+Mientras la aplicación permanece abierta, el prototipo consulta Health Connect al iniciar y cada 60 segundos; el usuario también puede forzar una lectura manual. Este intervalo iguala la frecuencia operacional prevista para la sincronización automática con Mi Fitness, pero no garantiza una nueva medición cada minuto: los valores disponibles dependen de que el reloj se haya sincronizado previamente con Mi Fitness y de que esta aplicación los haya escrito en Health Connect. Por tanto, pulso y SpO$_2$ se consideran contexto retrospectivo y no señales para una alerta inmediata. En la práctica, conviene abrir Mi Fitness después de una noche para completar la transferencia del reloj y luego verificar los registros en el Monitor.
+
+\subsection{Características y clasificación}
+
+Cada ventana candidata incluirá RMS, desviación estándar, pico, factor de cresta, cruces por cero, frecuencia dominante, autocorrelación y energía en 0,5--2, 2--5, 5--10 y 10--20 Hz. Mientras el número de eventos positivos sea pequeño se compararán Random Forest y máquina de vectores de soporte. Se evitarán redes profundas porque su complejidad no está justificada con una muestra individual y desbalanceada.
+
+El posprocesamiento fusionará ventanas contiguas, aplicará persistencia mínima y un periodo refractario. El resultado se expresará como \textit{movimiento sostenido: verificar}, nunca como diagnóstico de convulsión.
+
+\section{Protocolo de evaluación}
+
+La fase basal incluirá al menos 20 noches sin eventos conocidos, manteniendo constantes teléfono, funda, ubicación y superficie. Se registrarán movimientos imitadores: giros, tos, levantarse, acomodar cobijas, movimiento de otro adulto y vibración externa. Los episodios reales disponibles se anotarán con inicio y fin observados, sin modificar el protocolo médico.
+
+\begin{table}[H]
+\centering
+\caption{Métricas previstas y criterio de interpretación}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4cm}X}
+\toprule
+Métrica & Uso \\
+\midrule
+Sensibilidad por episodio & Proporción de eventos motores de referencia que contienen al menos una detección válida \\
+Falsas alarmas por hora & Carga operacional para cuidadores durante sueño normal \\
+Latencia de detección & Tiempo entre inicio observado y activación del evento candidato \\
+Valor predictivo positivo & Fracción de alertas asociadas con un evento confirmado; se reportará con el desbalance real \\
+Disponibilidad de datos & Porcentaje de la noche con muestreo válido y archivos íntegros \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La exactitud global no será la métrica principal, pues horas de sueño normal pueden producir valores elevados aun con mala sensibilidad. Las particiones se harán por noche: ninguna ventana de una noche de entrenamiento podrá aparecer en prueba. Se reportarán intervalos de confianza y matrices de confusión a nivel de evento y de ventana.
+
+\section{Resultados tecnológicos preliminares}
+
+Se obtuvo un prototipo Android instalable que registra aceleración en primer plano, representa gráficamente los tres ejes, calcula un indicador de movimiento y guarda sesiones etiquetadas. La versión 1.0.1 integra lectura histórica de frecuencia cardiaca y SpO$_2$ mediante Health Connect. Para Android 12/13 se incorporó una actividad pública de explicación del uso de datos mediante \texttt{ACTION\_SHOW\_PERMISSIONS\_RATIONALE}; para Android 14 o posterior se declaró el alias de \texttt{VIEW\_PERMISSION\_USAGE}. La compilación automatizada se ejecuta en GitHub Actions.
+
+Estos resultados demuestran factibilidad de ingeniería, no desempeño clínico. Aún no existe un conjunto prospectivo suficiente para estimar sensibilidad, especificidad o falsas alarmas. En consecuencia, no se reportan cifras de clasificación propias y se evita extrapolar exactitudes de estudios basados en EEG, poblaciones neonatales o sensores corporales duales.
+
+\section{Discusión}
+
+La principal fortaleza del enfoque es su bajo costo y capacidad de producir datos personalizados. El disparador en dos etapas reduce consumo y volumen de almacenamiento, mientras que el etiquetado transforma un problema de umbral fijo en uno de aprendizaje supervisado. La integración con Health Connect evita depender de ingeniería inversa del protocolo Xiaomi y conserva una separación clara entre adquisición fisiológica comercial y análisis experimental.
+
+La limitación dominante es espacial: el teléfono mide el colchón, no a una persona. En una cama compartida, la señal puede provenir de cualquiera de los ocupantes. Tampoco se detectarán de forma confiable crisis focales sin movimiento marcado, ausencias ni eventos con amplitud insuficiente. La sincronización fisiológica es histórica y puede presentar retrasos; por ello no debe utilizarse para decidir una alerta urgente en esta versión.
+
+Una evolución razonable consiste en incorporar un sensor corporal pequeño y autónomo, o un segundo punto de medición, para estimar coherencia espacial y atribución del movimiento. La multimodalidad deberá evaluarse por su mejora incremental y no asumirse beneficios solo por añadir variables. Frecuencia cardiaca y SpO$_2$ pueden contener artefactos, valores faltantes y diferencias de reloj interno.
+
+\section{Consideraciones éticas y de seguridad}
+
+El sistema maneja datos de salud sensibles. Los archivos deben permanecer seudonimizados, almacenarse localmente y cifrarse antes de cualquier respaldo. La publicación de datos requerirá consentimiento informado, aprobación ética institucional y un plan de anonimización. No se deben incluir nombres, tokens de mensajería, direcciones del dispositivo ni claves en el repositorio.
+
+Un falso negativo es silencioso y potencialmente peligroso; por tanto, la aplicación no reemplaza supervisión, tratamiento, dispositivos prescritos ni protocolos de emergencia. Un falso positivo puede producir fatiga de alarmas. Toda comunicación al usuario debe describir \textit{eventos candidatos} que requieren verificación.
+
+\section{Conclusiones}
+
+Es técnicamente viable construir una plataforma experimental de monitoreo nocturno con el acelerómetro de un teléfono y registros fisiológicos históricos de un reloj comercial. La combinación STA/LTA, análisis de periodicidad, persistencia y etiquetado personalizado ofrece una ruta metodológica coherente para estudiar eventos motores sostenidos. Sin embargo, la cama compartida, la ausencia de acelerometría cruda del reloj y la naturaleza retrospectiva de Health Connect limitan cualquier afirmación clínica.
+
+El siguiente hito no es aumentar la complejidad del clasificador, sino completar un protocolo prospectivo con noches completas, movimientos imitadores y etiquetado confiable. Solo después de cuantificar sensibilidad por episodio y falsas alarmas por hora será justificable evaluar alertas remotas o sensores adicionales.
+
+\newpage
+\section{Referencias}
+\hangindent=1.27cm Alt Murphy, M., Bergquist, F., Hagström, B., Hernández, N., Johansson, D., Ohlsson, F., Sandsjö, L., Wipenmyr, J., y Malmgren, K. (2019). An upper body garment with integrated sensors for people with neurological disorders: Early development and evaluation. \textit{BMC Biomedical Engineering, 1}, 3. \url{https://doi.org/10.1186/s42490-019-0002-3}
+
+\hangindent=1.27cm Chen, H., Wang, Z., Lu, C., Shu, F., Chen, C., Wang, L., y Chen, W. (2023). Neonatal seizure detection using a wearable multi-sensor system. \textit{Bioengineering, 10}(6), 658. \url{https://doi.org/10.3390/bioengineering10060658}
+
+\hangindent=1.27cm Johansson, D., Ohlsson, F., Krýsl, D., Rydenhag, B., Czarnecki, M., Gustafsson, N., Wipenmyr, J., McKelvey, T., y Malmgren, K. (2019). Tonic-clonic seizure detection using accelerometry-based wearable sensors: A prospective, video-EEG controlled study. \textit{Seizure, 65}, 48--54. \url{https://doi.org/10.1016/j.seizure.2018.12.024}
+
+\hangindent=1.27cm Kaur, P., y Bharti, V. (2019). Comparison of machine learning approach in smart wearables. En \textit{2019 Women Institute of Technology Conference on Electrical and Computer Engineering (WITCON ECE)}. IEEE.
+
+\hangindent=1.27cm McHale, S. A., Pereira, E., Weishmann, U., Hall, M., y Fang, H. (2017). An IoT approach to personalised remote monitoring and management of epilepsy. En \textit{2017 International Symposium on Pervasive Systems, Algorithms and Networks}. IEEE. \url{https://doi.org/10.1109/ISPAN-FCST-ISCC.2017.34}
+
+\hangindent=1.27cm Sayeed, M. A., Mohanty, S. P., Kougianos, E., Yanambaka, V. P., y Zaveri, H. (2018). A robust and fast seizure detector for IoT edge. En \textit{2018 IEEE International Symposium on Smart Electronic Systems}. IEEE.
+
+\hangindent=1.27cm Zovko, K., Šerić, L., Perković, T., Belani, H., y Šolić, P. (2023). IoT and health monitoring wearable devices as enabling technologies for sustainable enhancement of life quality in smart environments. \textit{Journal of Cleaner Production, 413}, 137506. \url{https://doi.org/10.1016/j.jclepro.2023.137506}
+
+\end{document}
