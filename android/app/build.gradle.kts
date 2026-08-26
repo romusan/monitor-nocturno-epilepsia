@@ -10,8 +10,8 @@ android {
         applicationId = "co.edu.ecci.monitornocturno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.8.0-xiaomi-gatt-retry"
+        versionCode = 10
+        versionName = "1.0.0-health-connect"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
@@ -25,6 +25,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.health.connect:connect-client:1.1.0")
     testImplementation("junit:junit:4.13.2")
 }
