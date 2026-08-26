@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -38,6 +39,10 @@ class BleWatchManager(
     private var notifyCandidates = emptyList<BluetoothGattCharacteristic>()
     private var notifyIndex = 0
     private var xiaomiKeyConfigured = false
+    private var xiaomiAuthKey: String? = null
+    private var xiaomiProtocol: XiaomiProtocol? = null
+    private val pendingWrites = ArrayDeque<Pair<BluetoothGattCharacteristic, ByteArray>>()
+    private var characteristicWriteInProgress = false
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -75,6 +80,9 @@ class BleWatchManager(
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     append("GATT desconectado; estado=$status")
+                    xiaomiProtocol = null
+                    pendingWrites.clear()
+                    characteristicWriteInProgress = false
                     report("Watch S1 desconectado", logText())
                 }
             }
@@ -126,6 +134,12 @@ class BleWatchManager(
             enableNextNotification()
         }
 
+        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            append("TX ${short(characteristic.uuid)} estado=$status")
+            characteristicWriteInProgress = false
+            writeNext()
+        }
+
         @Deprecated("Used on Android 12 and earlier")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             receive(characteristic, characteristic.value ?: byteArrayOf())
@@ -137,7 +151,8 @@ class BleWatchManager(
     }
 
     fun scanAndConnect(authKey: String? = null) {
-        xiaomiKeyConfigured = authKey?.matches(Regex("[0-9a-fA-F]{32}")) == true
+        xiaomiAuthKey = authKey?.takeIf { it.matches(Regex("[0-9a-fA-F]{32}")) }
+        xiaomiKeyConfigured = xiaomiAuthKey != null
         val scanner = adapter?.bluetoothLeScanner
         if (adapter == null || adapter?.isEnabled != true || scanner == null) {
             report("Active Bluetooth para buscar el reloj", logText()); return
@@ -197,6 +212,7 @@ class BleWatchManager(
             }
         }
         report("Watch S1 conectado; escuchando paquetes", logText())
+        startXiaomiAuthentication()
     }
 
     private fun receive(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
@@ -206,9 +222,61 @@ class BleWatchManager(
                 reportHeartRate(it)
             }
         }
+        if (characteristic.uuid == XIAOMI_COMMAND_READ || characteristic.uuid == XIAOMI_COMMAND_WRITE) {
+            try {
+                val result = xiaomiProtocol?.handleFrame(value)
+                if (result != null) {
+                    if (result.needsAck) enqueueWrite(characteristic, XiaomiProtocol.ACK)
+                    val commandWrite = gatt?.getService(XIAOMI_SERVICE)?.getCharacteristic(XIAOMI_COMMAND_WRITE)
+                    if (commandWrite != null) result.outgoing.forEach { enqueueWrite(commandWrite, it) }
+                    result.heartRate?.let { reportHeartRate(it) }
+                    result.message?.let { append(it) }
+                    if (result.authenticatedNow) report("Watch S1 autenticado; esperando pulso", logText())
+                }
+            } catch (e: Exception) {
+                append("Error protocolo Xiaomi: ${e.javaClass.simpleName}: ${e.message ?: "sin detalle"}")
+                report("Fallo de autenticacion Xiaomi", logText())
+            }
+        }
         val hex = value.take(48).joinToString("") { "%02X".format(it) }
         append("RX ${short(characteristic.uuid)} ${value.size}B $hex")
         report("Recibiendo datos del Watch S1", logText())
+    }
+
+    private fun startXiaomiAuthentication() {
+        val key = xiaomiAuthKey ?: run {
+            append("No se inicia autenticacion: falta clave Xiaomi")
+            report("Watch S1 conectado; falta clave Xiaomi", logText())
+            return
+        }
+        val write = gatt?.getService(XIAOMI_SERVICE)?.getCharacteristic(XIAOMI_COMMAND_WRITE) ?: return
+        xiaomiProtocol = XiaomiProtocol(key)
+        append("Iniciando reto de autenticacion Xiaomi")
+        report("Autenticando Watch S1...", logText())
+        enqueueWrite(write, xiaomiProtocol!!.noncePacket())
+    }
+
+    private fun enqueueWrite(characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+        pendingWrites.addLast(characteristic to value)
+        writeNext()
+    }
+
+    private fun writeNext() {
+        if (characteristicWriteInProgress) return
+        val g = gatt ?: return
+        val next = pendingWrites.removeFirstOrNull() ?: return
+        val accepted = if (Build.VERSION.SDK_INT >= 33) {
+            g.writeCharacteristic(next.first, next.second, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
+        } else {
+            @Suppress("DEPRECATION") next.first.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            @Suppress("DEPRECATION") next.first.value = next.second
+            @Suppress("DEPRECATION") g.writeCharacteristic(next.first)
+        }
+        if (accepted) characteristicWriteInProgress = true
+        else {
+            append("Android rechazo escritura ${short(next.first.uuid)}")
+            handler.postDelayed({ writeNext() }, 200)
+        }
     }
 
     private fun isWatchS1(name: String): Boolean {
