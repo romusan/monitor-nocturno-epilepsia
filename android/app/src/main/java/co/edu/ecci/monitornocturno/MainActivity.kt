@@ -11,7 +11,9 @@ import android.os.Bundle
 import android.graphics.Color
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -41,6 +43,26 @@ class MainActivity : AppCompatActivity() {
         val heartRate = findViewById<TextView>(R.id.heartRate)
         val watchLog = findViewById<TextView>(R.id.watchLog)
         val watchDetails = findViewById<Button>(R.id.watchDetails)
+        val authKeyInput = findViewById<EditText>(R.id.xiaomiAuthKey)
+        val authKeyStatus = findViewById<TextView>(R.id.xiaomiKeyStatus)
+        val prefs = getSharedPreferences("xiaomi_watch", Context.MODE_PRIVATE)
+        fun updateKeyStatus() {
+            authKeyStatus.text = if (prefs.getString("auth_key", "").isNullOrBlank())
+                "Clave Xiaomi no configurada"
+            else "Clave Xiaomi configurada (oculta)"
+        }
+        updateKeyStatus()
+        findViewById<Button>(R.id.saveXiaomiKey).setOnClickListener {
+            val key = authKeyInput.text.toString().trim().removePrefix("0x")
+            if (!key.matches(Regex("[0-9a-fA-F]{32}"))) {
+                authKeyInput.error = "Debe contener exactamente 32 caracteres hexadecimales"
+            } else {
+                prefs.edit().putString("auth_key", key.lowercase()).apply()
+                authKeyInput.text.clear()
+                updateKeyStatus()
+                Toast.makeText(this, "Clave guardada; nunca se mostrara en el registro", Toast.LENGTH_LONG).show()
+            }
+        }
         watchDetails.setOnClickListener {
             val show = watchLog.visibility != View.VISIBLE
             watchLog.visibility = if (show) View.VISIBLE else View.GONE
@@ -59,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             { bpm -> runOnUiThread { heartRate.text = "$bpm lpm" } }
         )
         findViewById<Button>(R.id.connectWatch).setOnClickListener {
-            if (hasBluetoothPermissions()) watchManager.scanAndConnect()
+            if (hasBluetoothPermissions()) watchManager.scanAndConnect(prefs.getString("auth_key", null))
             else ActivityCompat.requestPermissions(this, bluetoothPermissions(), 20)
         }
         val toggle = findViewById<Button>(R.id.toggle)
@@ -94,7 +116,7 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 20 && grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-            watchManager.scanAndConnect()
+            watchManager.scanAndConnect(getSharedPreferences("xiaomi_watch", Context.MODE_PRIVATE).getString("auth_key", null))
         }
     }
 

@@ -18,6 +18,16 @@
         <Button android:id="@+id/connectWatch" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
             android:text="Buscar y conectar Watch S1" />
+        <EditText android:id="@+id/xiaomiAuthKey" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:hint="Clave Xiaomi: 32 caracteres hexadecimales"
+            android:inputType="textPassword" android:maxLength="34"
+            android:singleLine="true" />
+        <Button android:id="@+id/saveXiaomiKey" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Guardar clave Xiaomi" />
+        <TextView android:id="@+id/xiaomiKeyStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Clave Xiaomi no configurada"
+            android:textSize="13sp" />
         <TextView android:id="@+id/watchStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
             android:text="● Reloj no conectado" android:textSize="18sp" android:textStyle="bold" />

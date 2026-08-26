@@ -37,6 +37,7 @@ class BleWatchManager(
     private val logLines = ArrayDeque<String>()
     private var notifyCandidates = emptyList<BluetoothGattCharacteristic>()
     private var notifyIndex = 0
+    private var xiaomiKeyConfigured = false
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -96,8 +97,26 @@ class BleWatchManager(
             val standardHr = g.getService(HEART_RATE_SERVICE)
                 ?.getCharacteristic(HEART_RATE_MEASUREMENT) != null
             append(if (standardHr) "Servicio cardiaco BLE estandar disponible" else "Servicio cardiaco estandar no expuesto; puede usar protocolo Xiaomi")
+            val xiaomiService = g.getService(XIAOMI_SERVICE)
+            val xiaomiTransport = xiaomiService != null && listOf(
+                XIAOMI_COMMAND_READ, XIAOMI_COMMAND_WRITE, XIAOMI_ACTIVITY
+            ).all { xiaomiService.getCharacteristic(it) != null }
+            append(
+                when {
+                    !xiaomiTransport -> "Transporte Xiaomi FE95 no encontrado en esta conexion"
+                    !xiaomiKeyConfigured -> "Transporte Xiaomi FE95 listo; falta configurar la clave"
+                    else -> "Transporte Xiaomi FE95 y clave detectados; autenticacion experimental pendiente"
+                }
+            )
             report("Conectado: ${g.services.size} servicios BLE", logText())
-            notifyCandidates = g.services.flatMap { it.characteristics }
+            notifyCandidates = if (xiaomiTransport) {
+                listOfNotNull(
+                    xiaomiService?.getCharacteristic(XIAOMI_COMMAND_READ),
+                    xiaomiService?.getCharacteristic(XIAOMI_COMMAND_WRITE),
+                    xiaomiService?.getCharacteristic(XIAOMI_ACTIVITY),
+                    xiaomiService?.getCharacteristic(XIAOMI_DATA_UPLOAD)
+                )
+            } else g.services.flatMap { it.characteristics }
             notifyIndex = 0
             enableNextNotification()
         }
@@ -117,7 +136,8 @@ class BleWatchManager(
         }
     }
 
-    fun scanAndConnect() {
+    fun scanAndConnect(authKey: String? = null) {
+        xiaomiKeyConfigured = authKey?.matches(Regex("[0-9a-fA-F]{32}")) == true
         val scanner = adapter?.bluetoothLeScanner
         if (adapter == null || adapter?.isEnabled != true || scanner == null) {
             report("Active Bluetooth para buscar el reloj", logText()); return
@@ -221,6 +241,11 @@ class BleWatchManager(
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private val HEART_RATE_SERVICE = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
         private val HEART_RATE_MEASUREMENT = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
+        private val XIAOMI_SERVICE = UUID.fromString("0000fe95-0000-1000-8000-00805f9b34fb")
+        private val XIAOMI_COMMAND_READ = UUID.fromString("00000051-0000-1000-8000-00805f9b34fb")
+        private val XIAOMI_COMMAND_WRITE = UUID.fromString("00000052-0000-1000-8000-00805f9b34fb")
+        private val XIAOMI_ACTIVITY = UUID.fromString("00000053-0000-1000-8000-00805f9b34fb")
+        private val XIAOMI_DATA_UPLOAD = UUID.fromString("00000055-0000-1000-8000-00805f9b34fb")
 
         fun parseHeartRate(value: ByteArray): Int? {
             if (value.size < 2) return null

@@ -10,8 +10,8 @@ android {
         applicationId = "co.edu.ecci.monitornocturno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.0-watch-heart-rate"
+        versionCode = 6
+        versionName = "0.5.0-xiaomi-transport"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
