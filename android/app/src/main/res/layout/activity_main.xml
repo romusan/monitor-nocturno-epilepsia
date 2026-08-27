@@ -21,6 +21,29 @@
         <Button android:id="@+id/syncHealth" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
             android:text="Autorizar o actualizar ahora" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="Sincronización periódica de Mi Fitness"
+            android:textSize="17sp" android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Android mostrará un aviso periódico. Tóquelo para abrir Mi Fitness y transferir los datos del reloj." />
+        <EditText android:id="@+id/miFitnessMinutes" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:inputType="number" android:hint="Frecuencia en minutos (mínimo 5)"
+            android:text="30" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:id="@+id/programMiFitness" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Programar avisos" />
+            <Button android:id="@+id/openMiFitness" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="8dp" android:text="Abrir ahora" />
+        </LinearLayout>
+        <Button android:id="@+id/stopMiFitnessSchedule" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Detener avisos" />
+        <TextView android:id="@+id/miFitnessScheduleStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp"
+            android:text="Avisos de Mi Fitness desactivados" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:layout_marginTop="10dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"

@@ -9,7 +9,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -29,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var healthStatus: TextView
     private lateinit var heartRateRecord: TextView
     private lateinit var oxygenRecord: TextView
+    private lateinit var miFitnessMinutes: EditText
+    private lateinit var miFitnessScheduleStatus: TextView
     private var healthSyncJob: Job? = null
     private val healthPermissionLauncher = registerForActivityResult(
         PermissionController.createRequestPermissionResultContract()
@@ -56,7 +60,16 @@ class MainActivity : AppCompatActivity() {
         healthStatus = findViewById(R.id.healthStatus)
         heartRateRecord = findViewById(R.id.heartRateRecord)
         oxygenRecord = findViewById(R.id.oxygenRecord)
+        miFitnessMinutes = findViewById(R.id.miFitnessMinutes)
+        miFitnessScheduleStatus = findViewById(R.id.miFitnessScheduleStatus)
+        val savedMinutes = getSharedPreferences("monitor_settings", MODE_PRIVATE)
+            .getInt("mi_fitness_interval_minutes", 30)
+        miFitnessMinutes.setText(savedMinutes.toString())
+        refreshMiFitnessScheduleStatus()
         findViewById<Button>(R.id.syncHealth).setOnClickListener { requestAndSyncHealth() }
+        findViewById<Button>(R.id.programMiFitness).setOnClickListener { programMiFitnessReminders() }
+        findViewById<Button>(R.id.openMiFitness).setOnClickListener { openMiFitness() }
+        findViewById<Button>(R.id.stopMiFitnessSchedule).setOnClickListener { stopMiFitnessReminders() }
         val toggle = findViewById<Button>(R.id.toggle)
         toggle.setOnClickListener {
             if (!running) {
@@ -76,6 +89,58 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendLabel(label: String) {
         startService(Intent(this, MonitoringService::class.java).setAction("LABEL").putExtra("label", label))
+    }
+
+    private fun programMiFitnessReminders() {
+        val minutes = miFitnessMinutes.text.toString().toIntOrNull()
+        if (minutes == null || minutes < 5 || minutes > 720) {
+            miFitnessMinutes.error = "Ingrese un valor entre 5 y 720 minutos"
+            return
+        }
+        requestNotificationPermissionIfNeeded()
+        getSharedPreferences("monitor_settings", MODE_PRIVATE).edit()
+            .putInt("mi_fitness_interval_minutes", minutes)
+            .putBoolean("mi_fitness_reminders_enabled", true)
+            .apply()
+        ContextCompat.startForegroundService(
+            this,
+            Intent(this, MonitoringService::class.java)
+                .setAction("CONFIGURE_MI_FITNESS")
+                .putExtra("interval_minutes", minutes)
+        )
+        refreshMiFitnessScheduleStatus()
+    }
+
+    private fun stopMiFitnessReminders() {
+        getSharedPreferences("monitor_settings", MODE_PRIVATE).edit()
+            .putBoolean("mi_fitness_reminders_enabled", false).apply()
+        startService(Intent(this, MonitoringService::class.java).setAction("DISABLE_MI_FITNESS"))
+        refreshMiFitnessScheduleStatus()
+    }
+
+    private fun openMiFitness() {
+        val launchIntent = packageManager.getLaunchIntentForPackage("com.xiaomi.wearable")
+        if (launchIntent == null) {
+            Toast.makeText(this, "Mi Fitness no está instalada o no se encontró", Toast.LENGTH_LONG).show()
+            return
+        }
+        startActivity(launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 11)
+        }
+    }
+
+    private fun refreshMiFitnessScheduleStatus() {
+        val preferences = getSharedPreferences("monitor_settings", MODE_PRIVATE)
+        val enabled = preferences.getBoolean("mi_fitness_reminders_enabled", false)
+        val minutes = preferences.getInt("mi_fitness_interval_minutes", 30)
+        miFitnessScheduleStatus.text = if (enabled) {
+            "Aviso activo cada $minutes minutos. Toque la notificación para abrir Mi Fitness."
+        } else "Avisos de Mi Fitness desactivados"
     }
 
     private fun requestAndSyncHealth() {
